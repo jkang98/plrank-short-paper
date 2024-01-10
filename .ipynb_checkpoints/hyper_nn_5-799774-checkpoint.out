@@ -1,0 +1,8 @@
+[I 2024-01-07 00:41:26,069] A new study created in memory with name: no-name-0b05240f-e123-410e-a0f3-ae664e6f8752
+[I 2024-01-07 03:05:02,194] Trial 0 finished with value: 0.7393435276341561 and parameters: {'n_layers': 1, 'n_units_l0': 102, 'optimizer': 'Adam', 'lr': 0.00017976548149752707, 'batch_size': 128}. Best is trial 0 with value: 0.7393435276341561.
+[I 2024-01-07 03:32:50,758] Trial 1 finished with value: 0.7074381147661832 and parameters: {'n_layers': 3, 'n_units_l0': 46, 'n_units_l1': 40, 'n_units_l2': 110, 'optimizer': 'RMSprop', 'lr': 0.05206750670407108, 'batch_size': 512}. Best is trial 0 with value: 0.7393435276341561.
+[I 2024-01-07 04:00:59,648] Trial 2 finished with value: 0.7068859529499459 and parameters: {'n_layers': 2, 'n_units_l0': 25, 'n_units_l1': 48, 'optimizer': 'RMSprop', 'lr': 0.02130301950172585, 'batch_size': 64}. Best is trial 0 with value: 0.7393435276341561.
+[I 2024-01-07 06:13:47,757] Trial 3 finished with value: 0.7432570124574654 and parameters: {'n_layers': 1, 'n_units_l0': 81, 'optimizer': 'SGD', 'lr': 0.0003344671825333233, 'batch_size': 512}. Best is trial 3 with value: 0.7432570124574654.
+[I 2024-01-07 07:34:58,164] Trial 4 finished with value: 0.7442905206900925 and parameters: {'n_layers': 2, 'n_units_l0': 26, 'n_units_l1': 54, 'optimizer': 'Adam', 'lr': 0.000548461093337025, 'batch_size': 128}. Best is trial 4 with value: 0.7442905206900925.
+[I 2024-01-07 09:24:43,807] Trial 5 finished with value: 0.718165733328069 and parameters: {'n_layers': 1, 'n_units_l0': 66, 'optimizer': 'SGD', 'lr': 1.6649282552812327e-05, 'batch_size': 64}. Best is trial 4 with value: 0.7442905206900925.
+slurmstepd: error: *** JOB 799774 ON ilps-cn002 CANCELLED AT 2024-01-07T10:15:24 ***
