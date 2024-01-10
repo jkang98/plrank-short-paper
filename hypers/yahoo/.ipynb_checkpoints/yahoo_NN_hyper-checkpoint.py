@@ -17,12 +17,7 @@ def _add_zero_to_vector(vector):
 
 
 def get_dataset_from_json_info(
-    dataset_name,
-    info_path,
-    store_pickle_after_read=True,
-    read_from_pickle=True,
-    feature_normalization=True,
-    purge_test_set=True,
+    dataset_name, info_path,
 ):
     with open(info_path) as f:
         all_info = json.load(f)
@@ -36,10 +31,7 @@ def get_dataset_from_json_info(
         "Missing fold paths for %s" % dataset_name
     )
 
-    if feature_normalization:
-        num_feat = set_info["num_unique_feat"]
-    else:
-        num_feat = set_info["num_nonzero_feat"]
+    num_feat = set_info["num_nonzero_feat"]
 
     return DataSet(
         dataset_name,
@@ -47,7 +39,6 @@ def get_dataset_from_json_info(
         set_info["num_relevance_labels"],
         num_feat,
         set_info["num_nonzero_feat"],
-        already_normalized=set_info["query_normalized"],
     )
 
 
@@ -66,9 +57,8 @@ class DataSet(object):
         num_nonzero_feat,
         store_pickle_after_read=True,
         read_from_pickle=True,
-        feature_normalization=True,
+        feature_normalization=False,
         purge_test_set=True,
-        already_normalized=False,
     ):
         self.name = name
         self.num_rel_labels = num_rel_labels
@@ -168,6 +158,24 @@ class DataFold(object):
             cur_docs.append(doc_feat)
             cur_labels.append(label)
 
+        stacked_documents = np.stack(cur_docs, axis=0)
+        if self.feature_normalization:
+            stacked_documents -= np.amin(stacked_documents, axis=0)[None, :]
+            safe_max = np.amax(stacked_documents, axis=0)
+            safe_max[safe_max == 0] = 1.0
+            stacked_documents /= safe_max[None, :]
+
+        np_labels = np.array(cur_labels, dtype=np.int64)
+        if not purge or np.any(np.greater(np_labels, 0)):
+            queries.append(
+                {
+                    "qid": current_qid,
+                    "n_docs": stacked_documents.shape[0],
+                    "labels": np_labels,
+                    "documents": stacked_documents,
+                }
+            )
+
         all_docs = np.concatenate([x["documents"] for x in queries], axis=0)
         all_n_docs = np.array([x["n_docs"] for x in queries], dtype=np.int64)
         all_labels = np.concatenate([x["labels"] for x in queries], axis=0)
@@ -175,29 +183,6 @@ class DataFold(object):
         query_ranges = _add_zero_to_vector(np.cumsum(all_n_docs))
 
         return query_ranges, all_docs, all_labels
-
-    def _create_feature_mapping(self, feature_dict):
-        total_features = 0
-        feature_map = {}
-        for fid in feature_dict:
-            if fid not in feature_map:
-                feature_map[fid] = total_features
-                total_features += 1
-        return feature_map
-
-    def _normalize_feat(self, query_ranges, feature_matrix):
-        non_zero_feat = np.zeros(feature_matrix.shape[1], dtype=bool)
-        for qid in range(query_ranges.shape[0] - 1):
-            s_i, e_i = query_ranges[qid : qid + 2]
-            cur_feat = feature_matrix[s_i:e_i, :]
-            min_q = np.amin(cur_feat, axis=0)
-            max_q = np.amax(cur_feat, axis=0)
-            cur_feat -= min_q[None, :]
-            denom = max_q - min_q
-            denom[denom == 0.0] = 1.0
-            cur_feat /= denom[None, :]
-            non_zero_feat += np.greater(max_q, min_q)
-        return non_zero_feat
 
     def read_data(self):
         """
@@ -215,9 +200,9 @@ class DataFold(object):
 
         pickle_path = self.data_path + pickle_name
 
-        train_raw_path = self.data_path + "train.txt"
-        valid_raw_path = self.data_path + "vali.txt"
-        test_raw_path = self.data_path + "test.txt"
+        train_raw_path = self.data_path + "set1.train.txt"
+        valid_raw_path = self.data_path + "set1.valid.txt"
+        test_raw_path = self.data_path + "set1.test.txt"
 
         if self.read_from_pickle and os.path.isfile(pickle_path):
             loaded_data = np.load(pickle_path, allow_pickle=True)
@@ -257,27 +242,6 @@ class DataFold(object):
                 "%d non-zero features found but %d expected"
                 % (len(feature_map), self._num_nonzero_feat,)
             )
-            if self.feature_normalization:
-                non_zero_feat = self._normalize_feat(
-                    train_doclist_ranges, train_feature_matrix
-                )
-                self._normalize_feat(valid_doclist_ranges, valid_feature_matrix)
-                self._normalize_feat(test_doclist_ranges, test_feature_matrix)
-
-                list_map = [
-                    x[0] for x in sorted(feature_map.items(), key=lambda x: x[1])
-                ]
-                filtered_list_map = [
-                    x for i, x in enumerate(list_map) if non_zero_feat[i]
-                ]
-
-                feature_map = {}
-                for i, x in enumerate(filtered_list_map):
-                    feature_map[x] = i
-
-                train_feature_matrix = train_feature_matrix[:, non_zero_feat]
-                valid_feature_matrix = valid_feature_matrix[:, non_zero_feat]
-                test_feature_matrix = test_feature_matrix[:, non_zero_feat]
 
             # sort found features so that feature id ascends
             sorted_map = sorted(feature_map.items())
@@ -464,7 +428,7 @@ def define_model(trial):
     n_layers = trial.suggest_int("n_layers", 1, 4)
     layers = []
 
-    in_features = 131
+    in_features = 519
     for i in range(n_layers):
         out_features = trial.suggest_int("n_units_l{}".format(i), 4, 128)
         layers.append(nn.Linear(in_features, out_features, dtype=torch.float64))
@@ -575,8 +539,8 @@ cutoff = int(sys.argv[1])
 num_samples = 200
 
 
-data = get_dataset_from_json_info("MSLR-WEB30k", "local_dataset_info.txt")
-fold_id = (int(sys.argv[2]) - 1) % data.num_folds()
+data = get_dataset_from_json_info("Webscope_C14_Set1", "local_dataset_info.txt")
+fold_id = (1 - 1) % data.num_folds()
 data = data.get_data_folds()[fold_id]
 
 data.read_data()

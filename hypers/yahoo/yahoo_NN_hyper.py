@@ -428,7 +428,7 @@ def define_model(trial):
     n_layers = trial.suggest_int("n_layers", 1, 4)
     layers = []
 
-    in_features = 501
+    in_features = 519
     for i in range(n_layers):
         out_features = trial.suggest_int("n_units_l{}".format(i), 4, 128)
         layers.append(nn.Linear(in_features, out_features, dtype=torch.float64))
@@ -539,7 +539,7 @@ cutoff = int(sys.argv[1])
 num_samples = 200
 
 
-data = get_dataset_from_json_info("MSLR-WEB30k", "local_dataset_info.txt")
+data = get_dataset_from_json_info("Webscope_C14_Set1", "local_dataset_info.txt")
 fold_id = (1 - 1) % data.num_folds()
 data = data.get_data_folds()[fold_id]
 
