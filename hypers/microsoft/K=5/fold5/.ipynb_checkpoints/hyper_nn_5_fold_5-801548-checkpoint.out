@@ -1,0 +1,31 @@
+[I 2024-01-10 21:13:53,272] A new study created in memory with name: no-name-90168611-2de0-4390-8cb6-decb256a1d30
+/home/jkang1/microsoft_NN_hyper.py:516: RuntimeWarning: overflow encountered in multiply
+  second_part = -exp_scores[None, :] * cumsum_reward_denom[:, -1, None]
+/home/jkang1/microsoft_NN_hyper.py:518: RuntimeWarning: overflow encountered in multiply
+  labels[relevant_docs][None, :]
+/home/jkang1/microsoft_NN_hyper.py:517: RuntimeWarning: invalid value encountered in add
+  second_part[:, relevant_docs] += (
+/home/jkang1/microsoft_NN_hyper.py:510: RuntimeWarning: overflow encountered in divide
+  cumsum_weight_denom = np.cumsum(rank_weights[:cutoff] / denom_per_rank, axis=1)
+/home/jkang1/microsoft_NN_hyper.py:512: RuntimeWarning: overflow encountered in divide
+  cumsum_reward_denom = np.cumsum(cumsum_labels / denom_per_rank, axis=1)
+/home/jkang1/microsoft_NN_hyper.py:526: RuntimeWarning: invalid value encountered in multiply
+  labels[cutoff_sampled_rankings]
+/home/jkang1/microsoft_NN_hyper.py:532: RuntimeWarning: invalid value encountered in subtract
+  sampled_direct_reward - sampled_following_reward
+[I 2024-01-10 22:00:49,685] Trial 0 finished with value: 0.4199740285747721 and parameters: {'n_layers': 2, 'n_units_l0': 5, 'n_units_l1': 84, 'optimizer': 'SGD', 'lr': 0.09047225930879245, 'batch_size': 512}. Best is trial 0 with value: 0.4199740285747721.
+[I 2024-01-10 23:19:43,934] Trial 1 finished with value: 0.44460965478056985 and parameters: {'n_layers': 3, 'n_units_l0': 60, 'n_units_l1': 48, 'n_units_l2': 86, 'optimizer': 'SGD', 'lr': 0.0472614847451611, 'batch_size': 128}. Best is trial 1 with value: 0.44460965478056985.
+[I 2024-01-11 05:42:25,394] Trial 2 finished with value: 0.4680428361592892 and parameters: {'n_layers': 3, 'n_units_l0': 5, 'n_units_l1': 106, 'n_units_l2': 91, 'optimizer': 'Adam', 'lr': 0.0006008053042035762, 'batch_size': 128}. Best is trial 2 with value: 0.4680428361592892.
+[I 2024-01-11 06:53:00,655] Trial 3 finished with value: 0.45637491833956684 and parameters: {'n_layers': 1, 'n_units_l0': 15, 'optimizer': 'SGD', 'lr': 0.025988807524091037, 'batch_size': 128}. Best is trial 2 with value: 0.4680428361592892.
+[I 2024-01-11 12:02:23,381] Trial 4 finished with value: 0.4592677519802141 and parameters: {'n_layers': 1, 'n_units_l0': 27, 'optimizer': 'SGD', 'lr': 0.00011142929945053943, 'batch_size': 512}. Best is trial 2 with value: 0.4680428361592892.
+Number of finished trials:  5
+Best trial:
+  NDCG@5: 0.4680428361592892
+  Params: 
+    n_layers: 3
+    n_units_l0: 5
+    n_units_l1: 106
+    n_units_l2: 91
+    optimizer: Adam
+    lr: 0.0006008053042035762
+    batch_size: 128

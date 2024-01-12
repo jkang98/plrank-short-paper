@@ -1,0 +1,15 @@
+[I 2024-01-10 21:15:03,482] A new study created in memory with name: no-name-9df02d50-2cdf-4928-9424-da3c6a85781e
+[I 2024-01-11 04:06:33,430] Trial 0 finished with value: 0.4696805859677876 and parameters: {'n_layers': 2, 'n_units_l0': 111, 'n_units_l1': 73, 'optimizer': 'Adam', 'lr': 0.0005339683014930629, 'batch_size': 512}. Best is trial 0 with value: 0.4696805859677876.
+[I 2024-01-11 08:14:33,585] Trial 1 finished with value: 0.47489577855818127 and parameters: {'n_layers': 3, 'n_units_l0': 20, 'n_units_l1': 58, 'n_units_l2': 128, 'optimizer': 'SGD', 'lr': 0.0010132988270809594, 'batch_size': 128}. Best is trial 1 with value: 0.47489577855818127.
+[I 2024-01-11 10:24:30,349] Trial 2 finished with value: 0.47248121521020037 and parameters: {'n_layers': 4, 'n_units_l0': 21, 'n_units_l1': 101, 'n_units_l2': 36, 'n_units_l3': 27, 'optimizer': 'SGD', 'lr': 0.004974851273436781, 'batch_size': 64}. Best is trial 1 with value: 0.47489577855818127.
+Number of finished trials:  3
+Best trial:
+  NDCG@5: 0.47489577855818127
+  Params: 
+    n_layers: 3
+    n_units_l0: 20
+    n_units_l1: 58
+    n_units_l2: 128
+    optimizer: SGD
+    lr: 0.0010132988270809594
+    batch_size: 128

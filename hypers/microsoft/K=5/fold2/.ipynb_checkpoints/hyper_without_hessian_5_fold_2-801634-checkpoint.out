@@ -1,0 +1,17 @@
+[I 2024-01-10 22:26:20,945] A new study created in memory with name: no-name-3e731528-3e7e-4604-8185-9338157dce53
+[I 2024-01-10 23:36:48,580] Trial 0 finished with value: -0.3916 and parameters: {'learning_rate': 3.432866312762838e-05, 'max_depth': 5, 'min_child_weight': 5, 'gamma': 0.07192579614981943, 'lambda': 0.005918516879659012, 'alpha': 0.13163448504397918}. Best is trial 0 with value: -0.3916.
+[I 2024-01-11 03:15:13,277] Trial 1 finished with value: -0.398602 and parameters: {'learning_rate': 1.2333178762720555e-06, 'max_depth': 7, 'min_child_weight': 5, 'gamma': 1.3164386907944442e-05, 'lambda': 2.026706844212322e-05, 'alpha': 0.8227252048787567}. Best is trial 1 with value: -0.398602.
+[I 2024-01-11 04:53:26,825] Trial 2 finished with value: -0.42899 and parameters: {'learning_rate': 0.0005298361975134706, 'max_depth': 8, 'min_child_weight': 10, 'gamma': 0.03169250611196788, 'lambda': 0.06655036995188289, 'alpha': 0.0012324184390185462}. Best is trial 2 with value: -0.42899.
+[I 2024-01-11 09:23:01,054] Trial 3 finished with value: -0.381282 and parameters: {'learning_rate': 6.562534350609163e-07, 'max_depth': 8, 'min_child_weight': 7, 'gamma': 0.0007285923133812753, 'lambda': 0.00041572377873732967, 'alpha': 3.6019505995887876e-08}. Best is trial 2 with value: -0.42899.
+[I 2024-01-11 09:52:20,457] Trial 4 finished with value: -0.282889 and parameters: {'learning_rate': 1.019168693401982e-06, 'max_depth': 2, 'min_child_weight': 5, 'gamma': 6.55375792386738e-08, 'lambda': 7.053449285741112e-07, 'alpha': 2.908423071406795e-05}. Best is trial 2 with value: -0.42899.
+[I 2024-01-11 10:34:01,214] Trial 5 finished with value: -0.391589 and parameters: {'learning_rate': 0.00012626508435499234, 'max_depth': 5, 'min_child_weight': 2, 'gamma': 0.0016035770529055405, 'lambda': 0.00019901275879933054, 'alpha': 0.3851890848271911}. Best is trial 2 with value: -0.42899.
+Number of finished trials:  6
+Best trial:
+  NDCG@5: 0.42899
+  Params: 
+    learning_rate: 0.0005298361975134706
+    max_depth: 8
+    min_child_weight: 10
+    gamma: 0.03169250611196788
+    lambda: 0.06655036995188289
+    alpha: 0.0012324184390185462
