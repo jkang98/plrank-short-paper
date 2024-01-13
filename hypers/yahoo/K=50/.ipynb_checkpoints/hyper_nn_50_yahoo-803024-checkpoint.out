@@ -1,0 +1,21 @@
+[I 2024-01-12 16:56:30,722] A new study created in memory with name: no-name-b9b7158c-879e-4343-9522-eede1f220575
+[I 2024-01-12 19:41:43,953] Trial 0 finished with value: 0.8551089524872056 and parameters: {'n_layers': 1, 'n_units_l0': 113, 'optimizer': 'SGD', 'lr': 0.00017997350219522743, 'batch_size': 64}. Best is trial 0 with value: 0.8551089524872056.
+[I 2024-01-12 21:29:09,153] Trial 1 finished with value: 0.8563179963068461 and parameters: {'n_layers': 4, 'n_units_l0': 99, 'n_units_l1': 66, 'n_units_l2': 123, 'n_units_l3': 79, 'optimizer': 'Adam', 'lr': 0.00035442702593541553, 'batch_size': 256}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-12 22:00:16,820] Trial 2 finished with value: 0.8193654476453711 and parameters: {'n_layers': 3, 'n_units_l0': 87, 'n_units_l1': 118, 'n_units_l2': 25, 'optimizer': 'SGD', 'lr': 0.03573874645293931, 'batch_size': 512}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-12 22:52:32,873] Trial 3 finished with value: 0.8333348242381415 and parameters: {'n_layers': 1, 'n_units_l0': 105, 'optimizer': 'Adam', 'lr': 0.01650636446460578, 'batch_size': 64}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-13 01:06:14,558] Trial 4 finished with value: 0.8534818316444803 and parameters: {'n_layers': 3, 'n_units_l0': 96, 'n_units_l1': 117, 'n_units_l2': 86, 'optimizer': 'SGD', 'lr': 0.00010147904752003196, 'batch_size': 64}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-13 02:04:25,514] Trial 5 finished with value: 0.8532853020477794 and parameters: {'n_layers': 4, 'n_units_l0': 53, 'n_units_l1': 15, 'n_units_l2': 101, 'n_units_l3': 16, 'optimizer': 'SGD', 'lr': 0.0006915200633056546, 'batch_size': 512}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-13 03:20:35,430] Trial 6 finished with value: 0.8536136656551494 and parameters: {'n_layers': 1, 'n_units_l0': 114, 'optimizer': 'Adam', 'lr': 0.0010803718927664008, 'batch_size': 512}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-13 03:58:58,181] Trial 7 finished with value: 0.8499607647392882 and parameters: {'n_layers': 1, 'n_units_l0': 90, 'optimizer': 'Adam', 'lr': 0.005838090572589216, 'batch_size': 256}. Best is trial 1 with value: 0.8563179963068461.
+[I 2024-01-13 06:26:44,542] Trial 8 finished with value: 0.857739747838325 and parameters: {'n_layers': 3, 'n_units_l0': 121, 'n_units_l1': 65, 'n_units_l2': 22, 'optimizer': 'SGD', 'lr': 0.0001598605886758976, 'batch_size': 64}. Best is trial 8 with value: 0.857739747838325.
+Number of finished trials:  9
+Best trial:
+  NDCG@50: 0.857739747838325
+  Params: 
+    n_layers: 3
+    n_units_l0: 121
+    n_units_l1: 65
+    n_units_l2: 22
+    optimizer: SGD
+    lr: 0.0001598605886758976
+    batch_size: 64

@@ -57,7 +57,7 @@ class DataSet(object):
         num_nonzero_feat,
         store_pickle_after_read=True,
         read_from_pickle=True,
-        feature_normalization=False,
+        feature_normalization=True,
         purge_test_set=True,
     ):
         self.name = name
@@ -200,9 +200,9 @@ class DataFold(object):
 
         pickle_path = self.data_path + pickle_name
 
-        train_raw_path = self.data_path + "set1.train.txt"
-        valid_raw_path = self.data_path + "set1.valid.txt"
-        test_raw_path = self.data_path + "set1.test.txt"
+        train_raw_path = self.data_path + "train.txt"
+        valid_raw_path = self.data_path + "vali.txt"
+        test_raw_path = self.data_path + "test.txt"
 
         if self.read_from_pickle and os.path.isfile(pickle_path):
             loaded_data = np.load(pickle_path, allow_pickle=True)
@@ -658,8 +658,8 @@ class TimingCallback(xgb.callback.TrainingCallback):
         return False
 
     
-data = get_dataset_from_json_info("Webscope_C14_Set1", "local_dataset_info.txt")
-fold_id = (1 - 1) % data.num_folds()
+data = get_dataset_from_json_info("MSLR-WEB30k", "local_dataset_info.txt")
+fold_id = (int(sys.argv[2]) - 1) % data.num_folds()
 data = data.get_data_folds()[fold_id]
 
 data.read_data()
@@ -694,12 +694,12 @@ new_valid.set_group([data.validation.query_feat(i).shape[0] for i in range(valid
 # plrank3
 params = {
     "verbosity": 0,
-    "learning_rate": 0.008783301373322701,
-    "max_depth": 8,
-    "min_child_weight": 6,
-    "gamma": 0.660318836446253,
-    "lambda": 0.0002215968913779487,
-    "alpha": 0.017685733626589432,
+    "learning_rate": 0.006613944494047691,
+    "max_depth": 6,
+    "min_child_weight": 5,
+    "gamma": 1.2992669620397299e-06,
+    "lambda": 5.3452291449528264e-06,
+    "alpha": 0.5485513430266088,
     "disable_default_eval_metric": 1,
 }
 
