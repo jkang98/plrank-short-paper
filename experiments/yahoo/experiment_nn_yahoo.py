@@ -470,6 +470,7 @@ def gumbel_sample_rankings(
     return rankings
 
 
+
 def PL_rank_3(rank_weights, labels, scores, n_samples):
     n_docs = labels.shape[0]
     cutoff = min(rank_weights.shape[0], n_docs)
@@ -525,6 +526,82 @@ def PL_rank_3(rank_weights, labels, scores, n_samples):
     )
 
     return result1 + np.mean(second_part, axis=0)
+
+
+def log_safe_zeros(values):
+    result = np.full(values.shape, np.NINF)
+    np.log(values, out=result, where=np.not_equal(values, 0))
+    return result
+
+
+def PL_rank_3_log(rank_weights, labels, scores, n_samples=None, sampled_rankings=None):
+    n_docs = labels.shape[0]
+    result = np.zeros(n_docs, dtype=np.float64)
+    cutoff = min(rank_weights.shape[0], n_docs)
+
+    if n_docs == 1:
+        return np.zeros_like(scores)
+
+    scores = scores.copy() - np.amax(scores) + 10.0
+
+    assert n_samples is not None or sampled_rankings is not None
+    if sampled_rankings is None:
+        sampled_rankings = gumbel_sample_rankings(
+            scores, n_samples, cutoff=cutoff, return_full_rankings=True
+        )
+    else:
+        n_samples = sampled_rankings.shape[0]
+
+    cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
+
+    srange = np.arange(n_samples)
+
+    relevant_docs = np.where(np.not_equal(labels, 0))[0]
+    n_relevant_docs = relevant_docs.size
+
+    in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
+    in_top_k[srange[:, None], cutoff_sampled_rankings] = True
+
+    weighted_labels = labels[cutoff_sampled_rankings] * rank_weights[None, :cutoff]
+    cumsum_labels = np.cumsum(weighted_labels[:, ::-1], axis=1)[:, ::-1]
+
+    np.add.at(result, cutoff_sampled_rankings[:, :-1], cumsum_labels[:, 1:])
+    result /= n_samples
+
+    log_denom_per_rank = np.logaddexp.accumulate(
+        scores[sampled_rankings[:, ::-1]], axis=1
+    )[:, : -cutoff - 1 : -1]
+
+    log_rank_weights = log_safe_zeros(rank_weights[:cutoff])
+    log_cumsum_labels = log_safe_zeros(cumsum_labels)
+    log_cumsum_weight_denom = np.logaddexp.accumulate(
+        log_rank_weights - log_denom_per_rank, axis=1
+    )
+    log_cumsum_reward_denom = np.logaddexp.accumulate(
+        log_cumsum_labels - log_denom_per_rank, axis=1
+    )
+
+    if cutoff < n_docs:
+        safe_scores = np.repeat(scores[None, :], n_samples, axis=0)
+        safe_scores[in_top_k] = np.min(scores)
+        second_part = -np.exp(safe_scores + log_cumsum_reward_denom[:, -1, None])
+        second_part[:, relevant_docs] += labels[relevant_docs][None, :] * np.exp(
+            safe_scores[:, relevant_docs] + log_cumsum_weight_denom[:, -1, None]
+        )
+    else:
+        second_part = np.empty((n_samples, n_docs), dtype=np.float64)
+
+    sampled_direct_reward = labels[cutoff_sampled_rankings] * np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_weight_denom
+    )
+    sampled_following_reward = np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_reward_denom
+    )
+    second_part[srange[:, None], cutoff_sampled_rankings] = (
+        sampled_direct_reward - sampled_following_reward
+    )
+
+    return result + np.mean(second_part, axis=0)
 
 
 cutoff = int(sys.argv[1])
@@ -596,7 +673,7 @@ for epoch_i in range(n_epochs):
 
                 q_np_scores = q_tf_scores.detach().numpy()[:, 0]
 
-                doc_weights = PL_rank_3(
+                doc_weights = PL_rank_3_log(
                     q_metric_weights, q_labels, q_np_scores, n_samples=num_samples
                 )
                 batch_doc_weights[batch_ranges[i]:batch_ranges[i+1]] = doc_weights

@@ -1,11 +1,13 @@
 import json
 import os.path
+import sys
 import time
 
 import numpy as np
-from torch import nn
+import optuna
 import torch
-import sys
+import torch.optim as optim
+from torch import nn
 
 FOLDDATA_WRITE_VERSION = 4
 
@@ -15,12 +17,7 @@ def _add_zero_to_vector(vector):
 
 
 def get_dataset_from_json_info(
-    dataset_name,
-    info_path,
-    store_pickle_after_read=True,
-    read_from_pickle=True,
-    feature_normalization=True,
-    purge_test_set=True,
+    dataset_name, info_path,
 ):
     with open(info_path) as f:
         all_info = json.load(f)
@@ -34,10 +31,7 @@ def get_dataset_from_json_info(
         "Missing fold paths for %s" % dataset_name
     )
 
-    if feature_normalization:
-        num_feat = set_info["num_unique_feat"]
-    else:
-        num_feat = set_info["num_nonzero_feat"]
+    num_feat = set_info["num_nonzero_feat"]
 
     return DataSet(
         dataset_name,
@@ -45,7 +39,6 @@ def get_dataset_from_json_info(
         set_info["num_relevance_labels"],
         num_feat,
         set_info["num_nonzero_feat"],
-        already_normalized=set_info["query_normalized"],
     )
 
 
@@ -64,9 +57,8 @@ class DataSet(object):
         num_nonzero_feat,
         store_pickle_after_read=True,
         read_from_pickle=True,
-        feature_normalization=True,
+        feature_normalization=False,
         purge_test_set=True,
-        already_normalized=False,
     ):
         self.name = name
         self.num_rel_labels = num_rel_labels
@@ -166,6 +158,24 @@ class DataFold(object):
             cur_docs.append(doc_feat)
             cur_labels.append(label)
 
+        stacked_documents = np.stack(cur_docs, axis=0)
+        if self.feature_normalization:
+            stacked_documents -= np.amin(stacked_documents, axis=0)[None, :]
+            safe_max = np.amax(stacked_documents, axis=0)
+            safe_max[safe_max == 0] = 1.0
+            stacked_documents /= safe_max[None, :]
+
+        np_labels = np.array(cur_labels, dtype=np.int64)
+        if not purge or np.any(np.greater(np_labels, 0)):
+            queries.append(
+                {
+                    "qid": current_qid,
+                    "n_docs": stacked_documents.shape[0],
+                    "labels": np_labels,
+                    "documents": stacked_documents,
+                }
+            )
+
         all_docs = np.concatenate([x["documents"] for x in queries], axis=0)
         all_n_docs = np.array([x["n_docs"] for x in queries], dtype=np.int64)
         all_labels = np.concatenate([x["labels"] for x in queries], axis=0)
@@ -173,29 +183,6 @@ class DataFold(object):
         query_ranges = _add_zero_to_vector(np.cumsum(all_n_docs))
 
         return query_ranges, all_docs, all_labels
-
-    def _create_feature_mapping(self, feature_dict):
-        total_features = 0
-        feature_map = {}
-        for fid in feature_dict:
-            if fid not in feature_map:
-                feature_map[fid] = total_features
-                total_features += 1
-        return feature_map
-
-    def _normalize_feat(self, query_ranges, feature_matrix):
-        non_zero_feat = np.zeros(feature_matrix.shape[1], dtype=bool)
-        for qid in range(query_ranges.shape[0] - 1):
-            s_i, e_i = query_ranges[qid : qid + 2]
-            cur_feat = feature_matrix[s_i:e_i, :]
-            min_q = np.amin(cur_feat, axis=0)
-            max_q = np.amax(cur_feat, axis=0)
-            cur_feat -= min_q[None, :]
-            denom = max_q - min_q
-            denom[denom == 0.0] = 1.0
-            cur_feat /= denom[None, :]
-            non_zero_feat += np.greater(max_q, min_q)
-        return non_zero_feat
 
     def read_data(self):
         """
@@ -255,27 +242,6 @@ class DataFold(object):
                 "%d non-zero features found but %d expected"
                 % (len(feature_map), self._num_nonzero_feat,)
             )
-            if self.feature_normalization:
-                non_zero_feat = self._normalize_feat(
-                    train_doclist_ranges, train_feature_matrix
-                )
-                self._normalize_feat(valid_doclist_ranges, valid_feature_matrix)
-                self._normalize_feat(test_doclist_ranges, test_feature_matrix)
-
-                list_map = [
-                    x[0] for x in sorted(feature_map.items(), key=lambda x: x[1])
-                ]
-                filtered_list_map = [
-                    x for i, x in enumerate(list_map) if non_zero_feat[i]
-                ]
-
-                feature_map = {}
-                for i, x in enumerate(filtered_list_map):
-                    feature_map[x] = i
-
-                train_feature_matrix = train_feature_matrix[:, non_zero_feat]
-                valid_feature_matrix = valid_feature_matrix[:, non_zero_feat]
-                test_feature_matrix = test_feature_matrix[:, non_zero_feat]
 
             # sort found features so that feature id ascends
             sorted_map = sorted(feature_map.items())
@@ -459,15 +425,9 @@ def compute_results_from_scores(
 
 def init_model():
     nn_model = nn.Sequential(
-        nn.Linear(501, 128, dtype=torch.float64),
+        nn.Linear(519, 118, dtype=torch.float64),
         nn.Sigmoid(),
-        nn.Linear(128, 87, dtype=torch.float64),
-        nn.Sigmoid(),
-        nn.Linear(87, 8, dtype=torch.float64),
-        nn.Sigmoid(),
-        nn.Linear(8, 124, dtype=torch.float64),
-        nn.Sigmoid(),
-        nn.Linear(124, 1, dtype=torch.float64),
+        nn.Linear(118, 1, dtype=torch.float64),
     )
     return nn_model
 
@@ -508,6 +468,7 @@ def gumbel_sample_rankings(
     )
 
     return rankings
+
 
 
 def PL_rank_3(rank_weights, labels, scores, n_samples):
@@ -567,10 +528,86 @@ def PL_rank_3(rank_weights, labels, scores, n_samples):
     return result1 + np.mean(second_part, axis=0)
 
 
+def log_safe_zeros(values):
+    result = np.full(values.shape, np.NINF)
+    np.log(values, out=result, where=np.not_equal(values, 0))
+    return result
+
+
+def PL_rank_3_log(rank_weights, labels, scores, n_samples=None, sampled_rankings=None):
+    n_docs = labels.shape[0]
+    result = np.zeros(n_docs, dtype=np.float64)
+    cutoff = min(rank_weights.shape[0], n_docs)
+
+    if n_docs == 1:
+        return np.zeros_like(scores)
+
+    scores = scores.copy() - np.amax(scores) + 10.0
+
+    assert n_samples is not None or sampled_rankings is not None
+    if sampled_rankings is None:
+        sampled_rankings = gumbel_sample_rankings(
+            scores, n_samples, cutoff=cutoff, return_full_rankings=True
+        )
+    else:
+        n_samples = sampled_rankings.shape[0]
+
+    cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
+
+    srange = np.arange(n_samples)
+
+    relevant_docs = np.where(np.not_equal(labels, 0))[0]
+    n_relevant_docs = relevant_docs.size
+
+    in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
+    in_top_k[srange[:, None], cutoff_sampled_rankings] = True
+
+    weighted_labels = labels[cutoff_sampled_rankings] * rank_weights[None, :cutoff]
+    cumsum_labels = np.cumsum(weighted_labels[:, ::-1], axis=1)[:, ::-1]
+
+    np.add.at(result, cutoff_sampled_rankings[:, :-1], cumsum_labels[:, 1:])
+    result /= n_samples
+
+    log_denom_per_rank = np.logaddexp.accumulate(
+        scores[sampled_rankings[:, ::-1]], axis=1
+    )[:, : -cutoff - 1 : -1]
+
+    log_rank_weights = log_safe_zeros(rank_weights[:cutoff])
+    log_cumsum_labels = log_safe_zeros(cumsum_labels)
+    log_cumsum_weight_denom = np.logaddexp.accumulate(
+        log_rank_weights - log_denom_per_rank, axis=1
+    )
+    log_cumsum_reward_denom = np.logaddexp.accumulate(
+        log_cumsum_labels - log_denom_per_rank, axis=1
+    )
+
+    if cutoff < n_docs:
+        safe_scores = np.repeat(scores[None, :], n_samples, axis=0)
+        safe_scores[in_top_k] = np.min(scores)
+        second_part = -np.exp(safe_scores + log_cumsum_reward_denom[:, -1, None])
+        second_part[:, relevant_docs] += labels[relevant_docs][None, :] * np.exp(
+            safe_scores[:, relevant_docs] + log_cumsum_weight_denom[:, -1, None]
+        )
+    else:
+        second_part = np.empty((n_samples, n_docs), dtype=np.float64)
+
+    sampled_direct_reward = labels[cutoff_sampled_rankings] * np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_weight_denom
+    )
+    sampled_following_reward = np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_reward_denom
+    )
+    second_part[srange[:, None], cutoff_sampled_rankings] = (
+        sampled_direct_reward - sampled_following_reward
+    )
+
+    return result + np.mean(second_part, axis=0)
+
+
 cutoff = int(sys.argv[1])
 num_samples = 200
 
-n_epochs = 400
+n_epochs = 500
 
 data = get_dataset_from_json_info("Webscope_C14_Set1", "local_dataset_info.txt")
 fold_id = (1 - 1) % data.num_folds()
@@ -603,45 +640,9 @@ epoch_results.append(
 
 n_queries = data.train.num_queries()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.00030338967603243743)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.0011345339558965816)
 
-
-"""
-total_train_time = 0
-for epoch_i in range(n_epochs):
-    last_method_train_time = time.time()
-    query_permutation = np.random.permutation(n_queries)
-    for qid in query_permutation:
-        q_labels = data.train.query_values_from_vector(qid, train_labels)
-        q_feat = torch.from_numpy(data.train.query_feat(qid))
-        q_ideal_metric = ideal_train_metrics[qid]
-
-        if q_ideal_metric != 0:
-            q_metric_weights = metric_weights  # /q_ideal_metric #uncomment for NDCG
-            q_tf_scores = model(q_feat)
-
-            q_np_scores = q_tf_scores.detach().numpy()[:, 0]
-
-            doc_weights = PL_rank_3(
-                q_metric_weights, q_labels, q_np_scores, n_samples=num_samples
-            )
-
-            loss = -torch.sum(q_tf_scores[:, 0] * torch.from_numpy(doc_weights))
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-    with torch.no_grad():
-        test_result = compute_results(
-            data.test, model, metric_weights, test_labels, ideal_test_metrics,
-        )
-    total_train_time += time.time() - last_method_train_time
-    epoch_results.append(
-        {"epoch": epoch_i+1, "total time": total_train_time, "test result": test_result,}
-    )
-"""
-
-batch_size = 128
+batch_size = 64
 start_time = time.time()
 for epoch_i in range(n_epochs):
     query_permutation = np.random.permutation(n_queries)
@@ -672,7 +673,7 @@ for epoch_i in range(n_epochs):
 
                 q_np_scores = q_tf_scores.detach().numpy()[:, 0]
 
-                doc_weights = PL_rank_3(
+                doc_weights = PL_rank_3_log(
                     q_metric_weights, q_labels, q_np_scores, n_samples=num_samples
                 )
                 batch_doc_weights[batch_ranges[i]:batch_ranges[i+1]] = doc_weights
