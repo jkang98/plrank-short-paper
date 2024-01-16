@@ -534,44 +534,34 @@ def log_safe_zeros(values):
     return result
 
 
-def PL_rank_3_log(rank_weights, labels, scores, n_samples=None, sampled_rankings=None):
+def PL_rank_3_log(rank_weights, labels, scores, n_samples):
     n_docs = labels.shape[0]
-    result = np.zeros(n_docs, dtype=np.float64)
     cutoff = min(rank_weights.shape[0], n_docs)
 
-    if n_docs == 1:
-        return np.zeros_like(scores)
-
-    scores = scores.copy() - np.amax(scores) + 10.0
-
-    assert n_samples is not None or sampled_rankings is not None
-    if sampled_rankings is None:
-        sampled_rankings = gumbel_sample_rankings(
+    sampled_rankings = gumbel_sample_rankings(
             scores, n_samples, cutoff=cutoff, return_full_rankings=True
         )
-    else:
-        n_samples = sampled_rankings.shape[0]
-
+    
     cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
+    
+    scores = scores.copy() - np.amax(scores) + 10.0
 
     srange = np.arange(n_samples)
-
-    relevant_docs = np.where(np.not_equal(labels, 0))[0]
-    n_relevant_docs = relevant_docs.size
-
-    in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
-    in_top_k[srange[:, None], cutoff_sampled_rankings] = True
 
     weighted_labels = labels[cutoff_sampled_rankings] * rank_weights[None, :cutoff]
     cumsum_labels = np.cumsum(weighted_labels[:, ::-1], axis=1)[:, ::-1]
 
+    result = np.zeros(n_docs, dtype=np.float64)
     np.add.at(result, cutoff_sampled_rankings[:, :-1], cumsum_labels[:, 1:])
     result /= n_samples
-
+    
+    in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
+    in_top_k[srange[:, None], cutoff_sampled_rankings] = True
+    
     log_denom_per_rank = np.logaddexp.accumulate(
         scores[sampled_rankings[:, ::-1]], axis=1
     )[:, : -cutoff - 1 : -1]
-
+    
     log_rank_weights = log_safe_zeros(rank_weights[:cutoff])
     log_cumsum_labels = log_safe_zeros(cumsum_labels)
     log_cumsum_weight_denom = np.logaddexp.accumulate(
@@ -580,7 +570,8 @@ def PL_rank_3_log(rank_weights, labels, scores, n_samples=None, sampled_rankings
     log_cumsum_reward_denom = np.logaddexp.accumulate(
         log_cumsum_labels - log_denom_per_rank, axis=1
     )
-
+    
+    relevant_docs = np.where(np.not_equal(labels, 0))[0]
     if cutoff < n_docs:
         safe_scores = np.repeat(scores[None, :], n_samples, axis=0)
         safe_scores[in_top_k] = np.min(scores)

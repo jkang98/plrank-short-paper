@@ -5,9 +5,9 @@ import time
 
 import numpy as np
 import optuna
-import torch
-import torch.optim as optim
-from torch import nn
+import xgboost as xgb
+from sklearn.datasets import load_svmlight_file
+from xgboost import DMatrix
 
 FOLDDATA_WRITE_VERSION = 4
 
@@ -358,78 +358,6 @@ class DataFoldSplit(object):
         for f_i in feat_i:
             doc_str += "%s:%f " % (self.datafold.feature_map[f_i], doc_feat[f_i])
         return doc_str
-    
-
-def cutoff_ranking(scores, cutoff, invert=False):
-    n_docs = scores.shape[0]
-    cutoff = min(n_docs, cutoff)
-    full_partition = np.argpartition(scores, cutoff - 1)
-    partition = full_partition[:cutoff]
-    sorted_partition = np.argsort(scores[partition])
-    ranked_partition = partition[sorted_partition]
-    if not invert:
-        return ranked_partition
-    else:
-        full_partition[:cutoff] = ranked_partition
-        inverted = np.empty(n_docs, dtype=ranked_partition.dtype)
-        inverted[full_partition] = np.arange(n_docs)
-        return ranked_partition, inverted
-    
-
-def ideal_metrics(data_split, rank_weights, labels):
-    cutoff = rank_weights.size
-    result = np.zeros(data_split.num_queries())
-    for qid in range(data_split.num_queries()):
-        q_labels = data_split.query_values_from_vector(qid, labels)
-        ranking = cutoff_ranking(-q_labels, cutoff)
-        result[qid] = np.sum(rank_weights[: ranking.size] * q_labels[ranking])
-    return result
-
-
-def compute_results(data_split, model, rank_weights, labels, ideal_metrics):
-    scores = model(torch.from_numpy(data_split.feature_matrix))[:, 0].detach().numpy()
-
-    return compute_results_from_scores(
-        data_split, scores, rank_weights, labels, ideal_metrics
-    )
-
-
-def evaluate_max_likelihood(data_split, scores, rank_weights, labels, ideal_metrics):
-    cutoff = rank_weights.size
-    result = np.zeros(data_split.num_queries())
-    query_normalized_result = np.zeros(data_split.num_queries())
-    for qid in range(data_split.num_queries()):
-        q_scores = data_split.query_values_from_vector(qid, scores)
-        q_labels = data_split.query_values_from_vector(qid, labels)
-        ranking = cutoff_ranking(-q_scores, cutoff)
-        q_result = np.sum(rank_weights[: ranking.size] * q_labels[ranking])
-        if ideal_metrics[qid] == 0:
-            query_normalized_result[qid] = 0.0
-        else:
-            query_normalized_result[qid] = q_result / ideal_metrics[qid]
-        result[qid] = q_result / np.mean(ideal_metrics)
-    return float(np.mean(query_normalized_result)), float(np.mean(result))
-
-
-def compute_results_from_scores(
-    data_split, scores, rank_weights, labels, ideal_metrics
-):
-    QN_ML, N_ML = evaluate_max_likelihood(
-        data_split, scores, rank_weights, labels, ideal_metrics
-    )
-
-    return {
-        "query normalized maximum likelihood": QN_ML,
-        "dataset normalized maximum likelihood": N_ML,
-    }
-
-def init_model():
-    nn_model = nn.Sequential(
-        nn.Linear(519, 118, dtype=torch.float64),
-        nn.Sigmoid(),
-        nn.Linear(118, 1, dtype=torch.float64),
-    )
-    return nn_model
 
 
 def multiple_cutoff_rankings(scores, cutoff, return_full_rankings):
@@ -469,74 +397,15 @@ def gumbel_sample_rankings(
 
     return rankings
 
-
-
-def PL_rank_3(rank_weights, labels, scores, n_samples):
-    n_docs = labels.shape[0]
-    cutoff = min(rank_weights.shape[0], n_docs)
-
-    sampled_rankings = gumbel_sample_rankings(
-        scores, n_samples, cutoff=cutoff, return_full_rankings=True
-    )
-
-    cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
-
-    scores = scores.copy() - np.amax(scores) + 10.0
-
-    srange = np.arange(n_samples)
-    crange = np.arange(cutoff)
-
-    weighted_labels = labels[cutoff_sampled_rankings] * rank_weights[None, :cutoff]
-    cumsum_labels = np.cumsum(weighted_labels[:, ::-1], axis=1)[:, ::-1]
-
-    # first order
-    result1 = np.zeros(n_docs, dtype=np.float64)
-    np.add.at(result1, cutoff_sampled_rankings[:, :-1], cumsum_labels[:, 1:])
-    result1 /= n_samples
-
-    exp_scores = np.exp(scores).astype(np.float64)
-    denom_per_rank = np.cumsum(exp_scores[sampled_rankings[:, ::-1]], axis=1)[
-        :, : -cutoff - 1 : -1
-    ]
-
-    # DR
-    cumsum_weight_denom = np.cumsum(rank_weights[:cutoff] / denom_per_rank, axis=1)
-    # RI
-    cumsum_reward_denom = np.cumsum(cumsum_labels / denom_per_rank, axis=1)
-
-    relevant_docs = np.where(np.not_equal(labels, 0))[0]
-    if cutoff < n_docs:
-        second_part = -exp_scores[None, :] * cumsum_reward_denom[:, -1, None]
-        second_part[:, relevant_docs] += (
-            labels[relevant_docs][None, :]
-            * exp_scores[None, relevant_docs]
-            * cumsum_weight_denom[:, -1, None]
-        )
-    else:
-        second_part = np.empty((n_samples, n_docs), dtype=np.float64)
-
-    sampled_direct_reward = (
-        labels[cutoff_sampled_rankings]
-        * exp_scores[cutoff_sampled_rankings]
-        * cumsum_weight_denom
-    )
-    sampled_following_reward = exp_scores[cutoff_sampled_rankings] * cumsum_reward_denom
-    second_part[srange[:, None], cutoff_sampled_rankings] = (
-        sampled_direct_reward - sampled_following_reward
-    )
-
-    return result1 + np.mean(second_part, axis=0)
-
-
 def log_safe_zeros(values):
     result = np.full(values.shape, np.NINF)
     np.log(values, out=result, where=np.not_equal(values, 0))
     return result
 
-
-def PL_rank_3_log(rank_weights, labels, scores, n_samples):
+def PL_rank_3_grad(rank_weights, labels, scores, n_samples):
     n_docs = labels.shape[0]
     cutoff = min(rank_weights.shape[0], n_docs)
+
 
     sampled_rankings = gumbel_sample_rankings(
             scores, n_samples, cutoff=cutoff, return_full_rankings=True
@@ -557,11 +426,11 @@ def PL_rank_3_log(rank_weights, labels, scores, n_samples):
     
     in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
     in_top_k[srange[:, None], cutoff_sampled_rankings] = True
-    
+
     log_denom_per_rank = np.logaddexp.accumulate(
         scores[sampled_rankings[:, ::-1]], axis=1
     )[:, : -cutoff - 1 : -1]
-    
+
     log_rank_weights = log_safe_zeros(rank_weights[:cutoff])
     log_cumsum_labels = log_safe_zeros(cumsum_labels)
     log_cumsum_weight_denom = np.logaddexp.accumulate(
@@ -570,7 +439,7 @@ def PL_rank_3_log(rank_weights, labels, scores, n_samples):
     log_cumsum_reward_denom = np.logaddexp.accumulate(
         log_cumsum_labels - log_denom_per_rank, axis=1
     )
-    
+
     relevant_docs = np.where(np.not_equal(labels, 0))[0]
     if cutoff < n_docs:
         safe_scores = np.repeat(scores[None, :], n_samples, axis=0)
@@ -592,96 +461,277 @@ def PL_rank_3_log(rank_weights, labels, scores, n_samples):
         sampled_direct_reward - sampled_following_reward
     )
 
-    return result + np.mean(second_part, axis=0)
+    return -(result + np.mean(second_part, axis=0))
 
 
-cutoff = int(sys.argv[1])
-num_samples = 200
+def PL_rank_3_hess(rank_weights, labels, scores, n_samples):
+    n_docs = labels.shape[0]
+    cutoff = min(rank_weights.shape[0], n_docs)
 
-n_epochs = 500
+    sampled_rankings = gumbel_sample_rankings(
+            scores, n_samples, cutoff=cutoff, return_full_rankings=True
+        )
+    cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
 
+    scores = scores.copy() - np.amax(scores) + 10.0
+
+    srange = np.arange(n_samples)
+
+    weighted_labels = labels[cutoff_sampled_rankings] * rank_weights[None, :cutoff]
+    cumsum_labels = np.cumsum(weighted_labels[:, ::-1], axis=1)[:, ::-1]
+
+    in_top_k = np.zeros((n_samples, n_docs), dtype=bool)
+    in_top_k[srange[:, None], cutoff_sampled_rankings] = True
+    
+    safe_scores = np.repeat(scores[None, :], n_samples, axis=0)
+    safe_scores[in_top_k] = np.min(scores)
+
+    log_denom_per_rank = np.logaddexp.accumulate(
+        scores[sampled_rankings[:, ::-1]], axis=1
+    )[:, : -cutoff - 1 : -1]
+    log_cumsum_denom = np.logaddexp.accumulate(0 - log_denom_per_rank, axis=1)
+
+    result = np.zeros(n_docs, dtype=np.float64)
+    np.add.at(
+        result,
+        cutoff_sampled_rankings[:, :-1],
+        cumsum_labels[:, 1:]
+        * (
+            1
+            - np.exp(scores[cutoff_sampled_rankings[:, :-1]] + log_cumsum_denom[:, :-1])
+        ),
+    )
+    result /= n_samples
+
+    sum_prob_per_doc = np.exp(safe_scores + log_cumsum_denom[:, -1, None])
+    sum_prob_per_doc[srange[:, None], cutoff_sampled_rankings] = np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_denom
+    )
+
+    in_or_not = np.zeros((n_samples, n_docs), dtype=np.float64)
+    in_or_not[srange[:, None], cutoff_sampled_rankings] = 1
+    long_item = in_or_not + 1 - sum_prob_per_doc
+
+    # second part
+    log_rank_weights = log_safe_zeros(rank_weights[:cutoff])
+    log_cumsum_labels = log_safe_zeros(cumsum_labels)
+    log_cumsum_weight_denom = np.logaddexp.accumulate(
+        log_rank_weights - log_denom_per_rank, axis=1
+    )
+    log_cumsum_reward_denom = np.logaddexp.accumulate(
+        log_cumsum_labels - log_denom_per_rank, axis=1
+    )
+    
+    
+    relevant_docs = np.where(np.not_equal(labels, 0))[0]
+    if cutoff < n_docs:
+        second_part = -np.exp(safe_scores + log_cumsum_reward_denom[:, -1, None])
+        second_part[:, relevant_docs] += labels[relevant_docs][None, :] * np.exp(
+            safe_scores[:, relevant_docs] + log_cumsum_weight_denom[:, -1, None]
+        )
+    else:
+        second_part = np.empty((n_samples, n_docs), dtype=np.float64)
+
+    sampled_direct_reward = labels[cutoff_sampled_rankings] * np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_weight_denom
+    )
+    sampled_following_reward = np.exp(
+        scores[cutoff_sampled_rankings] + log_cumsum_reward_denom
+    )
+    second_part[srange[:, None], cutoff_sampled_rankings] = (
+        sampled_direct_reward - sampled_following_reward
+    )
+    
+    
+    # third part
+    log_cumsum_weight_denom_square = np.logaddexp.accumulate(
+        log_rank_weights - 2*log_denom_per_rank, axis=1
+    )
+    log_cumsum_reward_denom_square = np.logaddexp.accumulate(
+        log_cumsum_labels - 2*log_denom_per_rank, axis=1
+    )
+
+    if cutoff < n_docs:
+        third_part = -np.exp(2*safe_scores + log_cumsum_reward_denom_square[:, -1, None])
+        third_part[:, relevant_docs] += labels[relevant_docs][None, :] * np.exp(
+            2 * safe_scores[:, relevant_docs] + log_cumsum_weight_denom_square[:, -1, None]
+        )
+    else:
+        third_part = np.empty((n_samples, n_docs), dtype=np.float64)
+
+
+    sampled_direct_reward_square = labels[cutoff_sampled_rankings] * np.exp(
+        2*scores[cutoff_sampled_rankings] + log_cumsum_weight_denom_square
+    )
+    sampled_following_reward_square = np.exp(
+        2 * scores[cutoff_sampled_rankings] + log_cumsum_reward_denom_square
+    )
+    third_part[srange[:, None], cutoff_sampled_rankings] = (
+        sampled_direct_reward_square - sampled_following_reward_square
+    )
+
+    return -(
+        result + np.mean(second_part * long_item, axis=0) - np.mean(third_part, axis=0)
+    )
+
+
+
+def plrank3obj(preds, dtrain):
+    group_ptr = dtrain.get_uint_info("group_ptr")
+    labels = dtrain.get_label()
+    labels = 2 ** labels - 1
+    
+
+    # number of rankings
+    n_samples = 100
+
+    grad = np.zeros(len(labels), dtype=np.float64)
+    hess = np.zeros(len(labels), dtype=np.float64)
+
+    group = np.diff(group_ptr)
+    max_query_size = max(group)
+    longest_metric_weights = 1.0 / np.log2(np.arange(max_query_size) + 2)
+
+    # number of docs to display
+    cutoff = int(sys.argv[1])
+
+    max_ranking_size = np.min((cutoff, max_query_size))
+    metric_weights = longest_metric_weights[:max_ranking_size]
+
+    for q in range(len(group_ptr) - 1):
+        q_l = labels[group_ptr[q] : group_ptr[q + 1]]
+        scores = preds[group_ptr[q] : group_ptr[q + 1]]
+
+        # first order
+        grad[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_grad(
+            metric_weights, q_l, scores.astype(np.float64), n_samples
+        )
+        # second order
+        hess[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_hess(
+            metric_weights, q_l, scores.astype(np.float64), n_samples
+        )
+
+    return grad, hess
+
+def dcg_at_k(rel, k):
+    rel = np.asfarray(rel)[:k]
+    if rel.size:
+        return np.sum((2**rel - 1) / np.log2(np.arange(2, rel.size + 2)))
+    return 0.0
+
+
+def ndcg_at_k(rel, k):
+    idcg = dcg_at_k(sorted(rel, reverse=True), k)
+    if not idcg:
+        return 0.0
+    return dcg_at_k(rel, k) / idcg
+
+
+def ideal_metrics(dtrain, k):
+    group_ptr = dtrain.get_uint_info("group_ptr")
+    labels = dtrain.get_label()
+    idcg_results = []
+
+    for q in range(len(group_ptr) - 1):
+        relevance_labels = labels[group_ptr[q] : group_ptr[q + 1]]
+        idcg_results.append(dcg_at_k(sorted(relevance_labels, reverse=True), k))
+
+    return np.mean(np.array(idcg_results))
+
+
+def ndcg_dataset(preds, dtrain):
+    group_ptr = dtrain.get_uint_info("group_ptr")
+    labels = dtrain.get_label()
+    results = []
+    k_value = int(sys.argv[1])
+    idcg = ideal_metrics(dtrain, k_value)
+
+    for q in range(len(group_ptr) - 1):
+        relevance_labels = labels[group_ptr[q] : group_ptr[q + 1]]
+        document_scores = preds[group_ptr[q] : group_ptr[q + 1]]
+        document_data = list(zip(document_scores, relevance_labels))
+        document_data.sort(reverse=True, key=lambda x: x[0])
+        sorted_relevance = [item[1] for item in document_data]
+        results.append(dcg_at_k(sorted_relevance, k_value) / idcg)
+
+    return "NDCG@{}".format(int(sys.argv[1])), float(np.mean(np.array(results)))
+
+# Custom callback to record running time for each round
+class TimingCallback(xgb.callback.TrainingCallback):
+    def before_training(self, model):
+        self.results = []
+        return model
+        
+    def after_iteration(self, model, epoch, evals_log):
+        elapsed_time = time.time() - start_time
+        round_time = {
+            'iteration': epoch + 1,
+            'time': elapsed_time
+        }
+        self.results.append(round_time)
+        return False
+
+    
 data = get_dataset_from_json_info("Webscope_C14_Set1", "local_dataset_info.txt")
 fold_id = (1 - 1) % data.num_folds()
 data = data.get_data_folds()[fold_id]
 
-
 data.read_data()
 
-max_ranking_size = np.min((cutoff, data.max_query_size()))
+from scipy.sparse import csr_matrix
 
-model = init_model()
-
-epoch_results = []
-
-longest_possible_metric_weights = 1.0 / np.log2(np.arange(data.max_query_size()) + 2)
-metric_weights = longest_possible_metric_weights[:max_ranking_size]
-train_labels = 2 ** data.train.label_vector - 1
-vali_labels = 2 ** data.validation.label_vector - 1
-test_labels = 2 ** data.test.label_vector - 1
-ideal_train_metrics = ideal_metrics(data.train, metric_weights, train_labels)
-ideal_vali_metrics = ideal_metrics(data.validation, metric_weights, vali_labels)
-ideal_test_metrics = ideal_metrics(data.test, metric_weights, test_labels)
-
-test_result = compute_results(
-    data.test, model, metric_weights, test_labels, ideal_test_metrics,
+train_n_queries = data.train.num_queries()
+train_array = np.concatenate(
+    [data.train.query_feat(i) for i in range(train_n_queries)], axis=0
 )
-epoch_results.append(
-    {"epoch": 0, "total time": 0, "test result": test_result,}
+train_sparse_matrix = csr_matrix(train_array)
+train_labels = data.train.label_vector
+new_train = DMatrix(train_sparse_matrix, train_labels)
+new_train.set_group([data.train.query_feat(i).shape[0] for i in range(train_n_queries)])
+
+test_n_queries = data.test.num_queries()
+test_array = np.concatenate([data.test.query_feat(i) for i in range(test_n_queries)], axis=0)
+test_sparse_matrix = csr_matrix(test_array)
+test_labels = data.test.label_vector
+new_test = DMatrix(test_sparse_matrix, test_labels)
+new_test.set_group([data.test.query_feat(i).shape[0] for i in range(test_n_queries)])
+
+validation_n_queries = data.validation.num_queries()
+validation_array = np.concatenate(
+    [data.validation.query_feat(i) for i in range(validation_n_queries)], axis=0
 )
+validation_sparse_matrix = csr_matrix(validation_array)
+validation_labels = data.validation.label_vector
+new_valid = DMatrix(validation_sparse_matrix, validation_labels)
+new_valid.set_group([data.validation.query_feat(i).shape[0] for i in range(validation_n_queries)])    
 
-n_queries = data.train.num_queries()
+# plrank3
+params = {
+    "verbosity": 0,
+    "learning_rate": 0.008783301373322701,
+    "max_depth": 8,
+    "min_child_weight": 6,
+    "gamma": 0.660318836446253,
+    "lambda": 0.0002215968913779487,
+    "alpha": 0.017685733626589432,
+    "disable_default_eval_metric": 1,
+}
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.0011345339558965816)
+timing_callback = TimingCallback()
+ndcg_result = {}
 
-batch_size = 64
 start_time = time.time()
-for epoch_i in range(n_epochs):
-    query_permutation = np.random.permutation(n_queries)
-    for batch_i in range(int(np.ceil(n_queries/batch_size))):
-        batch_queries = query_permutation[batch_i*batch_size:(batch_i+1)*batch_size]
-        cur_batch_size = batch_queries.shape[0]
-        batch_ranges = np.zeros(cur_batch_size+1, dtype=np.int64)
-        batch_features = [data.train.query_feat(batch_queries[0])]
-        batch_ranges[1] = batch_features[0].shape[0]
-        for i in range(1, cur_batch_size):
-            batch_features.append(data.train.query_feat(batch_queries[i]))
-            batch_ranges[i+1] = batch_ranges[i] + batch_features[i].shape[0]
-        batch_features = torch.from_numpy(np.concatenate(batch_features, axis=0))
-    
-        batch_tf_scores = model(batch_features)
-        loss = 0
-        batch_doc_weights = np.zeros(batch_features.shape[0], dtype=np.float64)
-        
-        for i, qid in enumerate(batch_queries):
-            q_labels =  data.train.query_values_from_vector(
-                                  qid, train_labels)
-            q_feat = batch_features[batch_ranges[i]:batch_ranges[i+1],:]
-            q_ideal_metric = ideal_train_metrics[qid]
-            
-            if q_ideal_metric != 0:
-                q_metric_weights = metric_weights  # /q_ideal_metric #uncomment for NDCG
-                q_tf_scores = model(q_feat)
+model = xgb.train(
+    params,
+    new_train,
+    num_boost_round=500,
+    evals=[(new_test, "test")],
+    obj=plrank3obj,
+    custom_metric=ndcg_dataset,
+    evals_result=ndcg_result,
+    verbose_eval=False,
+    callbacks=[timing_callback]
+)
 
-                q_np_scores = q_tf_scores.detach().numpy()[:, 0]
-
-                doc_weights = PL_rank_3_log(
-                    q_metric_weights, q_labels, q_np_scores, n_samples=num_samples
-                )
-                batch_doc_weights[batch_ranges[i]:batch_ranges[i+1]] = doc_weights
-                
-        loss = -torch.sum(batch_tf_scores[:,0] * torch.from_numpy(batch_doc_weights))
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-    total_train_time = time.time() - start_time
-    with torch.no_grad():
-        test_result = compute_results(
-            data.test, model, metric_weights, test_labels, ideal_test_metrics,
-        )
-    epoch_results.append(
-        {"epoch": epoch_i+1, "total time": total_train_time, "test result": test_result,}
-    )
-     
-print(epoch_results)
+print(ndcg_result)
+print(timing_callback.results)
