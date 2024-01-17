@@ -1,0 +1,30 @@
+[I 2024-01-14 00:45:10,820] A new study created in memory with name: no-name-5d6756ac-4c2e-4692-a122-68aff55d8913
+/home/jkang1/microsoft_NN_hyper.py:510: RuntimeWarning: overflow encountered in divide
+  cumsum_weight_denom = np.cumsum(rank_weights[:cutoff] / denom_per_rank, axis=1)
+/home/jkang1/microsoft_NN_hyper.py:512: RuntimeWarning: overflow encountered in divide
+  cumsum_reward_denom = np.cumsum(cumsum_labels / denom_per_rank, axis=1)
+/home/jkang1/microsoft_NN_hyper.py:517: RuntimeWarning: invalid value encountered in add
+  second_part[:, relevant_docs] += (
+/home/jkang1/microsoft_NN_hyper.py:526: RuntimeWarning: invalid value encountered in multiply
+  labels[cutoff_sampled_rankings]
+/home/jkang1/microsoft_NN_hyper.py:532: RuntimeWarning: invalid value encountered in subtract
+  sampled_direct_reward - sampled_following_reward
+[I 2024-01-14 02:13:50,399] Trial 0 finished with value: 0.4508871965919536 and parameters: {'n_layers': 4, 'n_units_l0': 72, 'n_units_l1': 57, 'n_units_l2': 91, 'n_units_l3': 112, 'optimizer': 'SGD', 'lr': 0.03344668594642172, 'batch_size': 64}. Best is trial 0 with value: 0.4508871965919536.
+[I 2024-01-14 08:41:07,298] Trial 1 finished with value: 0.46645201308224304 and parameters: {'n_layers': 3, 'n_units_l0': 96, 'n_units_l1': 36, 'n_units_l2': 39, 'optimizer': 'Adam', 'lr': 0.00028112272977158016, 'batch_size': 256}. Best is trial 1 with value: 0.46645201308224304.
+[I 2024-01-14 11:12:38,170] Trial 2 finished with value: 0.4684693126672372 and parameters: {'n_layers': 4, 'n_units_l0': 114, 'n_units_l1': 44, 'n_units_l2': 22, 'n_units_l3': 18, 'optimizer': 'Adam', 'lr': 0.044893116222334495, 'batch_size': 512}. Best is trial 2 with value: 0.4684693126672372.
+[I 2024-01-14 13:56:20,710] Trial 3 finished with value: 0.45653701496002197 and parameters: {'n_layers': 2, 'n_units_l0': 17, 'n_units_l1': 72, 'optimizer': 'SGD', 'lr': 0.010482549648377472, 'batch_size': 512}. Best is trial 2 with value: 0.4684693126672372.
+[I 2024-01-14 22:19:11,315] Trial 4 finished with value: 0.46122763988339655 and parameters: {'n_layers': 4, 'n_units_l0': 75, 'n_units_l1': 97, 'n_units_l2': 121, 'n_units_l3': 69, 'optimizer': 'Adam', 'lr': 0.0002036759436273716, 'batch_size': 512}. Best is trial 2 with value: 0.4684693126672372.
+[I 2024-01-14 23:11:08,200] Trial 5 finished with value: 0.44883774417136574 and parameters: {'n_layers': 2, 'n_units_l0': 63, 'n_units_l1': 103, 'optimizer': 'Adam', 'lr': 0.05957474897440833, 'batch_size': 128}. Best is trial 2 with value: 0.4684693126672372.
+[I 2024-01-15 05:44:21,941] Trial 6 finished with value: 0.46874956351057556 and parameters: {'n_layers': 2, 'n_units_l0': 70, 'n_units_l1': 118, 'optimizer': 'Adam', 'lr': 0.00039304607064752947, 'batch_size': 128}. Best is trial 6 with value: 0.46874956351057556.
+[I 2024-01-15 07:38:11,836] Trial 7 finished with value: 0.470659924336926 and parameters: {'n_layers': 2, 'n_units_l0': 77, 'n_units_l1': 28, 'optimizer': 'SGD', 'lr': 0.0034441330232947943, 'batch_size': 256}. Best is trial 7 with value: 0.470659924336926.
+[I 2024-01-15 11:45:08,342] Trial 8 finished with value: 0.47452665461835847 and parameters: {'n_layers': 1, 'n_units_l0': 90, 'optimizer': 'SGD', 'lr': 0.003639514874754632, 'batch_size': 256}. Best is trial 8 with value: 0.47452665461835847.
+[I 2024-01-15 18:20:32,154] Trial 9 finished with value: 0.46841369224430407 and parameters: {'n_layers': 4, 'n_units_l0': 16, 'n_units_l1': 86, 'n_units_l2': 85, 'n_units_l3': 45, 'optimizer': 'Adam', 'lr': 0.0007315138653319935, 'batch_size': 512}. Best is trial 8 with value: 0.47452665461835847.
+Number of finished trials:  10
+Best trial:
+  NDCG@5: 0.47452665461835847
+  Params: 
+    n_layers: 1
+    n_units_l0: 90
+    optimizer: SGD
+    lr: 0.003639514874754632
+    batch_size: 256
