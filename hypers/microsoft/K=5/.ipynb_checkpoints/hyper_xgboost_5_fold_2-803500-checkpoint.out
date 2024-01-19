@@ -1,0 +1,27 @@
+[I 2024-01-14 00:46:57,573] A new study created in memory with name: no-name-a2a17379-0bd9-4dd1-805b-8b7f9543bb50
+[I 2024-01-14 02:24:49,738] Trial 0 finished with value: -0.148965 and parameters: {'learning_rate': 0.002175926675466907, 'max_depth': 2, 'min_child_weight': 7, 'gamma': 0.0008318394700553999, 'lambda': 1.8029501884384175e-08, 'alpha': 5.2279369909178196e-08}. Best is trial 0 with value: -0.148965.
+[I 2024-01-14 07:44:15,467] Trial 1 finished with value: -0.381751 and parameters: {'learning_rate': 0.009479905761434404, 'max_depth': 1, 'min_child_weight': 5, 'gamma': 2.5002089836268707e-08, 'lambda': 0.19637083614451062, 'alpha': 0.0005277834977766519}. Best is trial 1 with value: -0.381751.
+[I 2024-01-14 08:45:05,636] Trial 2 finished with value: -0.152322 and parameters: {'learning_rate': 0.0026244186883893593, 'max_depth': 3, 'min_child_weight': 7, 'gamma': 5.027172126412388e-05, 'lambda': 1.7288762312399065e-05, 'alpha': 0.12145753262190936}. Best is trial 1 with value: -0.381751.
+[I 2024-01-14 09:42:45,176] Trial 3 finished with value: -0.140961 and parameters: {'learning_rate': 0.0015480715626310835, 'max_depth': 1, 'min_child_weight': 2, 'gamma': 3.452518800777687e-05, 'lambda': 8.713869261147301e-06, 'alpha': 3.9879711605945135e-07}. Best is trial 1 with value: -0.381751.
+[I 2024-01-14 10:24:26,660] Trial 4 finished with value: -0.150937 and parameters: {'learning_rate': 0.0021559374650828495, 'max_depth': 4, 'min_child_weight': 5, 'gamma': 7.795703735870519e-05, 'lambda': 0.6698607888948385, 'alpha': 0.00010702563163138794}. Best is trial 1 with value: -0.381751.
+[I 2024-01-14 11:52:31,212] Trial 5 finished with value: -0.155373 and parameters: {'learning_rate': 0.0014467410112909487, 'max_depth': 5, 'min_child_weight': 7, 'gamma': 1.2947947547033539e-05, 'lambda': 5.437669201109368e-08, 'alpha': 0.05410386442316911}. Best is trial 1 with value: -0.381751.
+[I 2024-01-14 17:12:55,019] Trial 6 finished with value: -0.407507 and parameters: {'learning_rate': 0.005382916763713528, 'max_depth': 6, 'min_child_weight': 7, 'gamma': 0.6748224516105041, 'lambda': 0.023436255879110888, 'alpha': 0.004189231572249415}. Best is trial 6 with value: -0.407507.
+[I 2024-01-14 18:52:22,031] Trial 7 finished with value: -0.15837 and parameters: {'learning_rate': 0.0030691016170710647, 'max_depth': 4, 'min_child_weight': 6, 'gamma': 8.297505609015825e-06, 'lambda': 1.4484960294369674e-05, 'alpha': 6.659373664476166e-05}. Best is trial 6 with value: -0.407507.
+[I 2024-01-14 19:42:02,008] Trial 8 finished with value: -0.148697 and parameters: {'learning_rate': 0.006641727873599002, 'max_depth': 6, 'min_child_weight': 7, 'gamma': 0.007899491121202315, 'lambda': 4.025493659734344e-05, 'alpha': 0.00048717161500535854}. Best is trial 6 with value: -0.407507.
+[I 2024-01-14 21:13:26,622] Trial 9 finished with value: -0.158959 and parameters: {'learning_rate': 0.0024150632116213384, 'max_depth': 5, 'min_child_weight': 3, 'gamma': 2.168711829939828e-08, 'lambda': 0.9556941105011443, 'alpha': 0.01115320733401271}. Best is trial 6 with value: -0.407507.
+[I 2024-01-14 23:26:31,751] Trial 10 finished with value: -0.159821 and parameters: {'learning_rate': 0.004701124030681336, 'max_depth': 6, 'min_child_weight': 4, 'gamma': 0.38972068618210687, 'lambda': 0.009530259860101562, 'alpha': 0.5380140766183867}. Best is trial 6 with value: -0.407507.
+[I 2024-01-15 00:24:09,496] Trial 11 finished with value: -0.144377 and parameters: {'learning_rate': 0.00905414447483618, 'max_depth': 1, 'min_child_weight': 5, 'gamma': 0.8594347140507936, 'lambda': 0.009894111633084028, 'alpha': 0.00390927690231277}. Best is trial 6 with value: -0.407507.
+[I 2024-01-15 05:43:16,190] Trial 12 finished with value: -0.431348 and parameters: {'learning_rate': 0.009997630000797635, 'max_depth': 3, 'min_child_weight': 4, 'gamma': 1.1785924737940063e-08, 'lambda': 0.02360160401577876, 'alpha': 0.0013121344961985173}. Best is trial 12 with value: -0.431348.
+[I 2024-01-15 11:03:03,752] Trial 13 finished with value: -0.391691 and parameters: {'learning_rate': 0.004840201618986512, 'max_depth': 3, 'min_child_weight': 4, 'gamma': 3.0609664712662474e-07, 'lambda': 0.0030932362066691923, 'alpha': 1.4111876168809557e-05}. Best is trial 12 with value: -0.431348.
+[I 2024-01-15 16:20:24,205] Trial 14 finished with value: -0.389778 and parameters: {'learning_rate': 0.006342890425499013, 'max_depth': 2, 'min_child_weight': 3, 'gamma': 7.246367687945069e-07, 'lambda': 0.0009995636554371132, 'alpha': 0.005287393261877498}. Best is trial 12 with value: -0.431348.
+[I 2024-01-15 17:09:39,110] Trial 15 finished with value: -0.148861 and parameters: {'learning_rate': 0.00965308470247319, 'max_depth': 5, 'min_child_weight': 6, 'gamma': 0.02442505949878956, 'lambda': 0.048376960616728956, 'alpha': 0.9864835338152973}. Best is trial 12 with value: -0.431348.
+Number of finished trials:  16
+Best trial:
+  NDCG@5: 0.431348
+  Params: 
+    learning_rate: 0.009997630000797635
+    max_depth: 3
+    min_child_weight: 4
+    gamma: 1.1785924737940063e-08
+    lambda: 0.02360160401577876
+    alpha: 0.0013121344961985173
