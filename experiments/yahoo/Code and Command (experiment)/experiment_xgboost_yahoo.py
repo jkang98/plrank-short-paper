@@ -398,13 +398,11 @@ def gumbel_sample_rankings(
     return rankings
 
 
-def PL_rank_3_grad(rank_weights, labels, scores, n_samples):
+def PL_rank_3_grad(rank_weights, labels, scores, sampled_rankings):
     n_docs = labels.shape[0]
     cutoff = min(rank_weights.shape[0], n_docs)
 
-    sampled_rankings = gumbel_sample_rankings(
-        scores, n_samples, cutoff=cutoff, return_full_rankings=True
-    )
+    n_samples = sampled_rankings.shape[0]
 
     cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
 
@@ -454,14 +452,12 @@ def PL_rank_3_grad(rank_weights, labels, scores, n_samples):
 
     return -(result1 + np.mean(second_part, axis=0))
 
-def PL_rank_3_hess(rank_weights, labels, scores, n_samples):
+def PL_rank_3_hess(rank_weights, labels, scores, sampled_rankings):
     n_docs = labels.shape[0]
     cutoff = min(rank_weights.shape[0], n_docs)
     relevant_docs = np.where(np.not_equal(labels, 0))[0]
-
-    sampled_rankings = gumbel_sample_rankings(
-        scores, n_samples, cutoff=cutoff, return_full_rankings=True
-    )
+    
+    n_samples = sampled_rankings.shape[0]
 
     cutoff_sampled_rankings = sampled_rankings[:, :cutoff]
 
@@ -566,10 +562,9 @@ def plrank3obj(preds, dtrain):
     group_ptr = dtrain.get_uint_info("group_ptr")
     labels = dtrain.get_label()
     labels = 2 ** labels - 1
-    
 
     # number of rankings
-    n_samples = 100
+    n_samples = 200
 
     grad = np.zeros(len(labels), dtype=np.float64)
     hess = np.zeros(len(labels), dtype=np.float64)
@@ -580,6 +575,8 @@ def plrank3obj(preds, dtrain):
 
     # number of docs to display
     cutoff = int(sys.argv[1])
+    # share rankings or not
+    share_rankings = sys.argv[2].lower() == "true"
 
     max_ranking_size = np.min((cutoff, max_query_size))
     metric_weights = longest_metric_weights[:max_ranking_size]
@@ -588,14 +585,27 @@ def plrank3obj(preds, dtrain):
         q_l = labels[group_ptr[q] : group_ptr[q + 1]]
         scores = preds[group_ptr[q] : group_ptr[q + 1]]
 
-        # first order
-        grad[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_grad(
-            metric_weights, q_l, scores.astype(np.float64), n_samples
+        sampled_rankings = gumbel_sample_rankings(
+            scores, n_samples, cutoff=cutoff, return_full_rankings=True
         )
-        # second order
-        hess[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_hess(
-            metric_weights, q_l, scores.astype(np.float64), n_samples
-        )
+        if share_rankings == True:
+            # first order
+            grad[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_grad(
+                metric_weights, q_l, scores.astype(np.float64), sampled_rankings
+            )
+            # second order
+            hess[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_hess(
+                metric_weights, q_l, scores.astype(np.float64), sampled_rankings
+            )
+        else:
+            # first order
+            grad[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_grad(
+                metric_weights, q_l, scores.astype(np.float64), sampled_rankings[:100]
+            )
+            # second order
+            hess[group_ptr[q] : group_ptr[q + 1]] = PL_rank_3_hess(
+                metric_weights, q_l, scores.astype(np.float64), sampled_rankings[100:]
+            )
 
     return grad, hess
 
@@ -710,7 +720,7 @@ start_time = time.time()
 model = xgb.train(
     params,
     new_train,
-    num_boost_round=500,
+    num_boost_round=1000,
     evals=[(new_test, "test")],
     obj=plrank3obj,
     custom_metric=ndcg_dataset,
