@@ -1,0 +1,13 @@
+[I 2024-01-27 15:37:02,825] A new study created in memory with name: no-name-b943afcd-3cb6-42ab-b67a-4e609b226a16
+[I 2024-01-27 22:00:25,612] Trial 0 finished with value: -0.41919 and parameters: {'learning_rate': 0.0011542545022885594, 'max_depth': 4, 'min_child_weight': 3, 'gamma': 0.0022254943424044648, 'lambda': 1.3402248422832894e-07, 'alpha': 5.362670668604038e-07}. Best is trial 0 with value: -0.41919.
+[I 2024-01-28 04:22:10,799] Trial 1 finished with value: -0.421411 and parameters: {'learning_rate': 0.0037425575872072096, 'max_depth': 3, 'min_child_weight': 8, 'gamma': 0.0012971477929061756, 'lambda': 3.065198364181938e-06, 'alpha': 6.476878197392283e-07}. Best is trial 1 with value: -0.421411.
+Number of finished trials:  2
+Best trial:
+  NDCG@10: 0.421411
+  Params: 
+    learning_rate: 0.0037425575872072096
+    max_depth: 3
+    min_child_weight: 8
+    gamma: 0.0012971477929061756
+    lambda: 3.065198364181938e-06
+    alpha: 6.476878197392283e-07
